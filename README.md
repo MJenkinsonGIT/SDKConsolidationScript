@@ -23,7 +23,7 @@ This script was built through **vibecoding** — a development approach where th
 ## Requirements
 
 - Python 3.10 or later
-- The Garmin Connect IQ SDK installed locally (tested against **SDK 8.4.1**, released February 2026)
+- The Garmin Connect IQ SDK installed locally (tested against **SDK 8.4.1**, released February 2026) — download free from the [Garmin developer portal](https://developer.garmin.com/connect-iq/sdk/)
 - Two third-party packages:
 
 ```
@@ -157,7 +157,11 @@ Sample and template projects are consolidated into single Markdown files with an
 
 ## Copyright Notice
 
-This script converts SDK documentation for local use. The generated Markdown output is derived from the Garmin Connect IQ SDK and is subject to Garmin's SDK license agreement. **Do not redistribute the generated output.** The script itself is MIT licensed — see `LICENSE`.
+This repository contains only the conversion script. The generated Markdown output is **not included** and cannot be, because it is derived directly from the Garmin Connect IQ SDK documentation. Garmin's SDK license agreement prohibits uploading or hosting the SDK — including its documentation — on any website or server, in whole or in part.
+
+To use this script you must obtain the SDK yourself from the [Garmin developer portal](https://developer.garmin.com/connect-iq/sdk/) and run the script against your own local copy. The generated output is for personal local use only — do not redistribute it.
+
+The script itself is MIT licensed — see `LICENSE`.
 
 ---
 
