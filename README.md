@@ -40,10 +40,13 @@ pip install beautifulsoup4 markdownify
 python build_sdk_reference.py
 ```
 
-On launch, two dialogs appear:
+On launch, five configuration dialogs appear in order:
 
 1. **SDK root picker** — browse to your Connect IQ SDK folder (the one containing `doc/`, `samples/`, etc.)
-2. **Device picker** — choose a specific target device for a tailored build, or select "All devices — general build" at the top of the list for a full unfiltered output
+2. **Device picker** — multi-select checkboxes; choose one or more target devices, or leave all unselected for a general build. Selecting devices enables compatibility checking and filters the Device Reference directory.
+3. **Compatibility mode** — *(only appears if devices are selected)* choose how samples that don't list your device are handled: annotate all (recommended), strict/any (exclude if not listed for at least one selected device), or strict/all (exclude if not listed for every selected device). When multiple devices are selected, per-device compatibility is annotated individually.
+4. **Split threshold** — the maximum file size in KB before a doc file is split into numbered parts. Default is 18 KB (~4,500 tokens). See [Choosing a threshold](#choosing-a-threshold) below.
+5. **Sample output mode** — choose how sample and template source code is packaged. See [Sample output modes](#sample-output-modes) below.
 
 The script runs in under 30 seconds and writes everything to a `Consolidated SDK/` folder directly inside your SDK root.
 
@@ -54,6 +57,7 @@ The script runs in under 30 seconds and writes everything to a `Consolidated SDK
 ```
 Consolidated SDK/
 ├── INDEX.md                     ← LLM navigation guide; start here
+├── SPLIT_FILES.md               ← Catalog of all multi-part doc files
 ├── SDK_IMAGE_CATALOG.md         ← Catalog of all SDK documentation images
 ├── docs/
 │   ├── index.md                 ← Flat list of all Toybox modules
@@ -71,13 +75,82 @@ Consolidated SDK/
 │       ├── System/DeviceSettings.md
 │       ├── WatchUi/DataField.md
 │       └── ...
-├── samples/                     ← 44 complete sample projects as Markdown
+├── samples/                     ← Sample projects (structure depends on output mode)
 └── templates/                   ← Boilerplate templates for each app type
 ```
 
 ---
 
+## Sample Output Modes
+
+The script offers two ways to package sample and template source code. The right choice depends on how much context your model can hold at once.
+
+### Why this matters: context window constraints
+
+This tooling was originally designed with large-context models in mind (Claude, GPT-4, etc.), where the bottleneck is relevance rather than capacity. As the project evolved to also support **small local models** — in particular 7B-parameter models with 32k token context windows, run via Ollama — a different problem emerged.
+
+A 32k context window sounds large, but in practice:
+- The model's system prompt + Cline's tool definitions consume ~6–8k tokens before any file is loaded
+- Every file read stays in context for the entire session
+- A single consolidated sample file can easily reach 20–30k tokens
+
+This leaves almost no room for actual code generation. The output modes below let you match the packaging to your model's capacity.
+
+### Separate files (default — recommended for small models)
+
+```
+samples/SampleName/
+  overview.md          ← metadata, compat warnings, project tree (tiny — ~1–2 KB)
+  source/App.mc        ← original .mc files copied verbatim
+  source/View.mc
+  manifest.xml
+  resources/
+```
+
+Each sample gets its own subdirectory. Source files are copied verbatim as `.mc` files — no Markdown wrappers. The `overview.md` is intentionally minimal (app type, APIs used, classes, compat warnings, links to source files, and a project tree), so a model can load it cheaply to decide whether it needs to read the source at all. Individual source files are then loaded only when needed.
+
+**Best for:** small local models (7B–13B, 32k context) and any setup where selective file loading is the norm.
+
+### Consolidated (recommended for large-context models)
+
+```
+samples/SampleName.md          ← metadata + manifest + all .mc source in one file
+samples/SampleName_part2.md   ← continuation, if the file exceeds the threshold
+```
+
+All source files for each sample are merged into a single `.md` file. This eliminates multiple round-trips to read a sample, at the cost of loading everything at once.
+
+**Best for:** large-context models (Claude, GPT-4, 128k+ context) where minimising tool calls matters more than minimising tokens loaded.
+
+---
+
+## Choosing a Threshold
+
+Doc files (and consolidated sample files) that exceed the threshold are split at heading boundaries into numbered parts. Each part gets a navigation banner listing all other parts.
+
+A rough conversion: **1 KB ≈ 250 tokens**.
+
+| Model context | Suggested threshold |
+|---|---|
+| 32k tokens (e.g. Qwen2.5-Coder-7B) | 18–25 KB |
+| 64k tokens | 32–40 KB |
+| 128k tokens | 50–70 KB |
+| 200k+ tokens | 80–120 KB |
+
+Setting the threshold too high means a single file can consume most of the model's context. Setting it too low creates many small parts, increasing the number of reads needed per topic. The default of 18 KB was chosen to fit comfortably within the usable working space of a 32k model after system prompts are accounted for.
+
+---
+
 ## General vs Device-Specific Builds
+
+### Multi-device support
+
+The device picker is now multi-select. You can target multiple devices simultaneously (e.g. venu3 + venu3s). When multiple devices are selected:
+
+- Each sample's `overview.md` shows per-device manifest listing status individually
+- Unsupported API warnings name the specific affected device(s)
+- The `SAMPLES_INDEX.md` shows ✓ (all listed), (partial) (some listed), or (unlisted) (none listed)
+- Strict filtering offers two sub-modes: exclude if not listed for *at least one* selected device, or exclude if not listed for *all* selected devices
 
 ### General build
 
@@ -151,7 +224,7 @@ Each HTML file goes through the following steps before becoming Markdown:
 10. `[show all](#)` / `[collapse](#)` UI artefacts stripped
 11. Excess blank lines collapsed
 
-Sample and template projects are consolidated into single Markdown files with an ASCII project tree at the top, followed by all source files in order (manifest → jungle → resources → `.mc` source).
+In **separate mode**, sample projects are copied verbatim into per-file subdirectories. The `overview.md` is generated fresh from the source; `.mc` files are copied as-is with no Markdown wrapping. In **consolidated mode**, all source content is merged into a single `.md` file with an ASCII project tree at the top, followed by all source files in order (manifest → jungle → `.mc` source). Device-variant resource directories (e.g. `resources-vivoactive_hr/`) are omitted from consolidated output as they are rarely relevant to coding tasks.
 
 ---
 

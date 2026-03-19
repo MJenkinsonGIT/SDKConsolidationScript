@@ -1,0 +1,5 @@
+    SDK_ROOT      = pick_sdk_root()
+    DEVICE_FILTERS = pick_devices(SDK_ROOT)
+    STRICT_DEVICE_FILTER, STRICT_REQUIRE_ALL = pick_compat_mode(DEVICE_FILTERS)
+    MAX_FILE_KB   = pick_threshold()
+    SAMPLE_OUTPUT_MODE = pick_output_mode()
